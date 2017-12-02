@@ -1,0 +1,281 @@
+<html>
+  <head>
+    <title>Cloud Linux for Chrome</title>
+    <link href="https://fonts.googleapis.com/css?family=Roboto"
+          rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css?family=Roboto+Mono"
+          rel="stylesheet">
+    <style>
+      body {
+          font-family: 'Roboto', sans-serif;
+          max-width: 900px
+      }
+      a {
+          text-decoration: none;
+          color: #6a6;
+      }
+      a:hover {
+          text-decoration: underline;
+      }
+      code {
+          font-family: 'Roboto Mono', monospace;
+      }
+      pre {
+          white-space: pre-wrap;
+          max-width: 680px;
+          border: 1px solid black;
+          background-color: #eee;
+          margin-left: 2em;
+          padding-left: 1em;
+          padding-right: 1em;
+          box-shadow: 2px 2px 3px #bbb;
+      }
+      code b {
+          color: #a00;
+          font-weight: normal;
+      }
+      code i {
+          color: #aaa;
+          font-style: normal;
+          font-size: 80%;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Cloud Linux for Chrome</h1>
+
+    <h2>Overview</h2>
+
+    <p>ChromeOS is getting increasingly more powerful, and for many
+    users, it can already do most of their everyday tasks. But on
+    occasion, it is convenient to have access to a full Linux desktop
+    environment. If you remembered to leave your PC running, you can
+    always connect to it
+    with <a href="https://chrome.google.com/webstore/detail/chrome-remote-desktop/gbchcmhmhahfdphkhkmpfmihenigjmpp">Chrome
+    Remote Desktop</a>, but what do you do if you don't have a PC or
+    it you don't normally leave it powered on? Wouldn't it be useful
+    to have a virtual server that can be reached from anywhere on the
+    internet?</p>
+
+    <h2>Getting a virtual server</h2>
+
+    <p>Many users, even if they don't have an "always-on" Linux
+    desktop, do have at least temporary access to a PC. And that's a
+    great choice for executing the commands in this tutorial. But
+    thanks to the magic
+    of <a href="https://play.google.com/store/apps/details?id=com.termux">Termux</a>,
+    all you really need is your ChromeOS device. You might consider
+    installing
+    an <a href="https://github.com/Neo-Oli/termux-ubuntu">Ubuntu
+    chroot</a> though, as it gives access to more command line
+    utilities than plain Termux does.</p>
+
+    <p>Before you can do anything, you obviously have to get a virtual
+    Linux machine. You can <a href="https://amazonlightsail.com/">cheaply rent</a> one
+    from a multitude of different hosting providers. But for the
+    purposes of this tutorial, we'll configure
+    an <a href="https://linuxcontainers.org/lxd/">LXD</a> container
+    instance instead.</p>
+
+    <p>You do not necessarily need to perform these steps, if you
+    already have access to a (virtual) machine that you want to use,
+    and if you don't want to run LXD to further partition that
+    server.</p>
+
+    <p>On the other hand, since LXD
+    is <a href="https://linuxcontainers.org/lxd/getting-started-cli/">available</a>
+    for many different distributions. You can follow this tutorial and
+    install an Ubuntu container, even if the host runs a different
+    Linux distribution. Note, these days it is strongly recommended to
+    install LXD in the form of
+    a <a href="https://linuxcontainers.org/lxd/getting-started-cli/">snap</a>
+    package, if possible.</p>
+
+    <p>These commands must be executed on the server that is going to
+    host your container.</p>
+
+    <pre><code>sudo snap install lxd
+sudo lxd init
+
+lxc launch ubuntu:16.04 <b>cloud-linux</b></code></pre>
+
+    <h2>Configuring the virtual server</h2>
+
+    <p>For the rest of this tutorial, we'll use <code>lxc
+    exec <b>cloud-linux</b> -- ...</code> to run commands inside of
+    our container. Of course, if you have a different type of virtual
+    environment, <code>ssh</code> might the appropriate command
+    instead.</p>
+
+    <p>Also, LXD defaults to creating an <code><b>ubuntu</b></code> user in
+    addition to <code><b>root</b></code>. This user can
+    use <code>sudo</code> to gain elevated privileges without having
+    to enter another password. If your virtual machine is configured
+    differently, you might need to make adjustments.</p>
+
+    <h2>Temporary VNC access</h2>
+
+    <p>In order to be able to turn on Chrome Remote Desktop, we already
+    need a working X Windows desktop environment that runs inside of
+    the container. While this sounds like
+    a <a href="https://en.wikipedia.org/wiki/Catch-22#Concept">Catch
+    22</a>, there fortunately are ways to temporarily give us a
+    working X Windows environment.</p>
+
+    <p>We install the <a href="http://xfce.org">XFCE desktop
+    environment</a>, as its default configuration doesn't have any
+    expensive graphical effects. This works better over slow internet
+    links. But you can always substitute your favorite desktop
+    environment instead, if your network is fast enough:</p>
+
+    <pre><code>lxc exec <b>cloud-linux</b> -- apt-get update
+lxc exec <b>cloud-linux</b> -- apt-get -y dist-upgrade
+
+lxc exec <b>cloud-linux</b> -- \
+    apt-get -y install xfce4 vnc4server \
+                       chromium-browser gnome-keyring
+
+lxc exec <b>cloud-linux</b> -- sudo -iu <b>ubuntu</b> mkdir -p /home/<b>ubuntu</b>/.vnc
+lxc exec <b>cloud-linux</b> -- \
+    sudo -iu <b>ubuntu</b> ln -s /bin/true /home/<b>ubuntu</b>/.vnc/xstartup
+
+lxc exec <b>cloud-linux</b> -- sudo -iu <b>ubuntu</b> vncserver
+<i>You will require a password to access your desktops.
+Password: <b>Pick any arbitrary password here</b>
+Verify:   <b>&hellip;</b>
+Would you like to enter a view-only password (y/n)? n
+xauth:  file /home/<b>ubuntu</b>/.Xauthority does not exist
+New 'X' desktop is cloud-linux:1
+Creating default startup script /home/<b>ubuntu</b>/.vnc/xstartup
+Starting applications specified in /home/<b>ubuntu</b>/.vnc/xstartup
+Log file is /home/<b>ubuntu</b>/.vnc/cloud-linux:1.log</i>
+
+lxc exec <b>cloud-linux</b> -- env DISPLAY=:1 \
+    sudo -iu <b>ubuntu</b> /etc/xdg/xfce4/xinitrc</code></pre>
+
+    <h2>Tunneling VNC</h2>
+
+    <p>The next step depends a lot on your choice of virtual container
+    environment. If there is no firewall between you and services
+    running inside your container, then you don't have to do anything
+    special at this point.</p>
+
+    <p>On the other hand, if you can only contact your container
+    through the <code>lxc</code> command, then you should forward the
+    port that is used by VNC:</p>
+
+    <pre><code>lxc exec <b>cloud-linux</b> -- apt-get -y install netcat
+
+nc -l -p 5901 -c 'lxc exec <b>cloud-linux</b> -- \
+                  su -c "nc 127.0.0.1 5901" <b>ubuntu</b>'</code></pre>
+
+    <p>On the other hand, if you access your virtual machine through
+    <a href="https://man.openbsd.org/ssh">SSH</a>, you might want to
+    try something along these lines instead:
+
+    <pre><code>ssh -L 5901:127.0.0.1:5901 -N <b>cloud-linux</b></code></pre>
+
+    <p>You should now be able to connect to your container from
+    any <a href="https://play.google.com/store/apps/details?id=com.realvnc.viewer.android">VNC
+    Client</a>. Simply tell it to establish a connection
+    to <code>localhost</code> on port <code>5901</code>. Please note
+    that this is not the default port (that would be <code>5900</code>). When
+    prompted, enter the VNC password that you picked earlier.</p>
+
+    <h2>Installing Google Chrome&hellip;</h2>
+
+    <p>In your newly-configured virtual Linux environment, open the
+    Chromium browser by finding it in the application menu (most likely
+    located in the top left-hand corner). Go
+    to <code>https://www.google.com/chrome/browser/desktop/</code> and
+    download the Chrome installer for Ubuntu 64bit. You can now close
+    Chromium.</p>
+
+    <p>Open a terminal window and type the following commands; when
+    you install Chrome with <code>dpkg -i</code>, there might be an
+    error message, that you can safely ignore.</p>
+
+    <pre><code>sudo dpkg -i ~/Downloads/google-chrome-stable_current_amd64.deb
+sudo apt-get -y install -f</pre></code>
+
+    <p>Open <code>Applications&#8614;Internet&#8614;Google
+    Chrome</code>. Make sure that you are logged into your Google
+    account in this browser. Then find
+    the <a href="https://chrome.google.com/webstore/detail/chrome-remote-desktop/gbchcmhmhahfdphkhkmpfmihenigjmpp">Chrome
+    Remote Desktop</a> extension in the Web Store, and install
+    it. Launch the newly installed </code>Chrome Remote Desktop</code> app.</p>
+
+    <p>You'll have to click away a couple of informational messages
+    until you see an option that reads <code>Remote Assistance:
+    User-to-user screen sharing</code>. Select that option, then click
+    on <code>Share this computer for another user to see and
+    control</code>. Allow Chrome to download the Chrome Remote Desktop
+    installer.</p>
+
+    <p>Once the package has completed downloading, close all browser windows.</p>
+
+    <h2>&hellip;and Friends</h2>
+
+    <p>From within the terminal window, install the package that you
+    just downloaded. At this point, we also make a couple of
+    configuration changes that the installer forgets to do:</p>
+
+    <pre><code>echo 'exec /etc/xdg/xfce4/xinitrc' \
+     >/home/ubuntu/.chrome-remote-desktop-session
+chmod 755 /home/ubuntu/.chrome-remote-desktop-session
+
+echo 'export CHROME_REMOTE_DESKTOP_DEFAULT_DESKTOP_SIZES=3840x2560' |
+  tee -a /home/ubuntu/.profile
+
+sudo dpkg -i ~/Downloads/chrome-remote-desktop_current_amd64.deb
+<i>dpkg: dependency problems prevent configuration of chrome-remote-desktop:
+ chrome-remote-desktop depends on xvfb-randr | xvfb; however:
+  Package xvfb-randr is not installed.
+  Package xvfb is not installed.
+ chrome-remote-desktop depends on xbase-clients; however:
+  Package xbase-clients is not installed.
+ chrome-remote-desktop depends on python-psutil; however:
+  Package python-psutil is not installed.
+Errors were encountered while processing:
+ chrome-remote-desktop</i>
+
+sudo apt-get -y install -f
+sudo adduser <b>ubuntu</b> chrome-remote-desktop</code></pre>
+
+    <p>Launch <code>Applications&#8614;Chrome Apps&#8614;Chrome Remote
+    Desktop</code>. If you see an item that reads <code>Access your
+    computer from anywhere</code>, click on the <code>Get
+    Started</code> button. This option sometimes doesn't show. That's
+    OK. But in either case, click on <code>Enable remote
+    connections</code> when you see it.</p>
+
+    <p>You'll be prompted to pick a PIN for this computer. Pick
+    something that you can remember. You'll need it each time you want
+    to connect with a new Remote Desktop client.</p>
+
+    <h2>Finishing up</h2>
+
+    <p>Restart your container and try connecting to it with Chrome
+    Remote Desktop. From this point forward, you no longer need
+    VNC. So, let's clean up all temporarily used resources:</p>
+
+    <pre><code>lxc restart <b>cloud-linux</b>
+
+lxc exec <b>cloud-linux</b> -- \
+    apt-get remove --purge -y vnc4server chromium-browser
+lxc exec <b>cloud-linux</b> -- apt-get autoremove --purge -y
+lxc exec <b>cloud-linux</b> -- apt-get clean
+
+lxc exec <b>cloud-linux</b> -- rm -rf \
+  /home/ubuntu/.vnc \
+   /home/ubuntu/.config/chromium \
+  /home/ubuntu/Downloads/google-chrome-stable_current_amd64.deb \
+  /home/ubuntu/Downloads/chrome-remote-desktop_current_amd64.deb</code></pre>
+
+    Now you are all set, and if you feel like it, you can open a
+    terminal window and install your favorite desktop applications:
+
+    <pre><code>sudo apt-get -y install libreoffice
+sudo apt-get clean</code></pre>
+  </body>
+</html>
