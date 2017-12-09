@@ -133,7 +133,7 @@ lxc exec <b>cloud-linux</b> -- apt-get -y dist-upgrade
 
 lxc exec <b>cloud-linux</b> -- \
     apt-get -y install xfce4 vnc4server \
-                       chromium-browser gnome-keyring
+                       chromium-browser gnome-keyring gksu
 
 lxc exec <b>cloud-linux</b> -- sudo -iu <b>ubuntu</b> mkdir -p /home/<b>ubuntu</b>/.vnc
 lxc exec <b>cloud-linux</b> -- \
